@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Portail Chauffeurs - Démo</title>
+  <style>
+    :root{--accent:#2b6cb0;--muted:#666}
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0; background:#f4f7fb;color:#16324f}
+    header{background:linear-gradient(90deg,#ffffff,#eef6ff);padding:18px 22px;box-shadow:0 1px 0 rgba(0,0,0,0.04)}
+    .container{max-width:1100px;margin:24px auto;padding:18px}
+    .card{background:white;border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(16,24,40,0.06);}
+    h1{margin:0;font-size:20px}
+    .grid{display:grid;grid-template-columns:320px 1fr;gap:18px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input,select,button,textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e1e8f0;font-size:14px}
+    button{cursor:pointer;background:var(--accent);color:white;border:none}
+    .muted{color:var(--muted);font-size:13px}
+    .small{font-size:13px}
+    .drivers-list{display:flex;flex-direction:column;gap:8px}
+    .driver{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;border:1px solid #f0f4f8}
+    .pill{padding:6px 8px;border-radius:999px;font-size:13px}
+    .available{background:#e6fffa;color:#065f46}
+    .busy{background:#fff1f2;color:#9f1239}
+    .nav{display:flex;gap:8px}
+    .nav button{background:transparent;color:var(--accent);padding:6px 8px;border-radius:8px;border:1px solid transparent}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid #f0f4f8;text-align:left}
+    .mission{display:flex;gap:8px;align-items:center}
+    .ok{color:green}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    @media(max-width:880px){.grid{grid-template-columns:1fr}} 
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container"><h1>Portail Chauffeurs — Planning & Assignation (démo)</h1></div>
+  </header>
+
+  <div class="container">
+    <div class="grid">
+      <div class="card" id="leftPanel">
+        <div id="loginBox">
+          <label>Connexion</label>
+          <select id="userSelect"></select>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="btnLogin">Se connecter</button>
+            <button id="btnAdmin">Accéder en tant qu'admin</button>
+          </div>
+          <p class="muted" style="margin-top:12px">(Démo : les utilisateurs et les missions sont stockés dans le navigateur.)</p>
+        </div>
+
+        <div id="driverBox" style="display:none">
+          <label>Profil chauffeur</label>
+          <div style="font-weight:600" id="driverName"></div>
+          <div style="margin-top:12px">
+            <label>Disponibilité</label>
+            <button id="toggleAvail">Basculer disponibilité</button>
+            <div style="margin-top:8px" class="muted">Statut actuel : <span id="availStatus" class="small"></span></div>
+          </div>
+          <div style="margin-top:12px">
+            <label>Mes missions à venir</label>
+            <div id="myMissions"></div>
+          </div>
+          <div style="margin-top:12px">
+            <button id="btnLogout" style="background:#e53e3e">Se déconnecter</button>
+          </div>
+        </div>
+
+        <div id="adminBox" style="display:none;margin-top:12px">
+          <label>Créer une mission</label>
+          <input id="clientName" placeholder="Nom client (ex: M. Dupont)" />
+          <label style="margin-top:8px">Date et heure</label>
+          <input id="dateTime" type="datetime-local" />
+          <label style="margin-top:8px">Lieu de prise</label>
+          <input id="pickup" placeholder="Adresse de prise" />
+          <label style="margin-top:8px">Destination</label>
+          <input id="dropoff" placeholder="Adresse de destination" />
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="btnCreateMission">Créer & assigner</button>
+            <button id="btnUnassigned">Voir non assignées</button>
+          </div>
+          <div style="margin-top:12px">
+            <label>Liste chauffeurs</label>
+            <div id="driversList" class="drivers-list"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card">
+        <div class="nav">
+          <button id="tabSchedule">Planning</button>
+          <button id="tabAllMissions">Toutes les missions</button>
+        </div>
+        <div style="margin-top:12px">
+          <div id="contentArea"></div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="muted">Conseils : pour production, ajoutez authentification (JWT/session), stockage côté serveur (base SQL/NoSQL), et gestion des chevauchements plus robuste.</footer>
+  </div>
+
+<script>
+const LS_KEY = 'chauffeurs_demo_v1';
+const LS_MISSIONS = 'missions_demo_v1';
+
+const sampleDrivers = [
+  {id:'d1',name:'Alice',avail:true},
+  {id:'d2',name:'Bernard',avail:true},
+  {id:'d3',name:'Carlos',avail:false},
+];
+
+function loadDrivers(){
+  const raw = localStorage.getItem(LS_KEY);
+  if(raw) return JSON.parse(raw);
+  localStorage.setItem(LS_KEY, JSON.stringify(sampleDrivers));
+  return sampleDrivers;
+}
+function saveDrivers(drivers){ localStorage.setItem(LS_KEY, JSON.stringify(drivers)); }
+
+function loadMissions(){
+  const raw = localStorage.getItem(LS_MISSIONS);
+  if(raw) return JSON.parse(raw);
+  localStorage.setItem(LS_MISSIONS, JSON.stringify([]));
+  return [];
+}
+function saveMissions(m){ localStorage.setItem(LS_MISSIONS, JSON.stringify(m)); }
+
+let drivers = loadDrivers();
+let missions = loadMissions();
+let currentUser = null;
+</script>
+</body>
+</html>
